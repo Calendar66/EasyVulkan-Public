@@ -1,0 +1,71 @@
+EasyVulkan/
+├── CMakeLists.txt
+├── .gitignore
+├── README.md
+├── docs/
+│   ├── EasyVulkan.md
+│   └── InheritanceDesign.md
+│   └── ComentRules.md
+├── include/
+│   └── EasyVulkan/
+│       ├── Core/
+│       │   ├── VulkanContext.hpp
+│       │   ├── VulkanDevice.hpp
+│       │   ├── SwapchainManager.hpp
+│       │   ├── CommandPoolManager.hpp
+│       │   ├── ResourceManager.hpp
+│       │   └── SynchronizationManager.hpp
+│       ├── Builders/
+│       │   ├── GraphicsPipelineBuilder.hpp
+│       │   ├── BufferBuilder.hpp
+│       │   ├── ImageBuilder.hpp
+│       │   ├── DescriptorSetBuilder.hpp
+│       │   ├── RenderPassBuilder.hpp
+│       │   ├── FramebufferBuilder.hpp
+│       │   ├── CommandBufferBuilder.hpp
+│       │   ├── SamplerBuilder.hpp
+│       │   ├── ShaderModuleBuilder.hpp
+│       │   └── ComputePipelineBuilder.hpp
+│       └── Utils/
+│           ├── CommandUtils.hpp
+│           ├── ResourceUtils.hpp
+│           ├── MemoryUtils.hpp
+│           └── VulkanDebug.hpp
+├── src/
+│   ├── Core/
+│   │   ├── VulkanContext.cpp
+│   │   ├── VulkanDevice.cpp
+│   │   ├── SwapchainManager.cpp
+│   │   ├── CommandPoolManager.cpp
+│   │   ├── ResourceManager.cpp
+│   │   └── SynchronizationManager.cpp
+│   ├── Builders/
+│   │   ├── GraphicsPipelineBuilder.cpp
+│   │   ├── BufferBuilder.cpp
+│   │   ├── ImageBuilder.cpp
+│   │   ├── DescriptorSetBuilder.cpp
+│   │   ├── RenderPassBuilder.cpp
+│   │   ├── FramebufferBuilder.cpp
+│   │   ├── CommandBufferBuilder.cpp
+│   │   ├── SamplerBuilder.cpp
+│   │   ├── ShaderModuleBuilder.cpp
+│   │   └── ComputePipelineBuilder.cpp
+│   └── Utils/
+│       ├── CommandUtils.cpp
+│       ├── ResourceUtils.cpp
+│       ├── MemoryUtils.cpp
+│       └── VulkanDebug.cpp
+├── examples/
+│   ├── CMakeLists.txt
+│   ├── 01_Triangle/
+│   │   ├── CMakeLists.txt
+│   │   └── main.cpp
+│   └── 02_Textured_Quad/
+│       ├── CMakeLists.txt
+│       └── main.cpp
+└── tests/
+    ├── CMakeLists.txt
+    └── unit/
+        ├── VulkanContextTests.cpp
+        ├── BuilderTests.cpp
+        └── UtilsTests.cpp

@@ -26,6 +26,14 @@
 #include <algorithm>       ///< For STL algorithms
 #include <stdexcept>       ///< For standard exceptions
 
+#if defined(__OHOS__)
+#include <ace/xcomponent/native_interface_xcomponent.h>
+#include <native_window/external_window.h>
+#else
+#include <GLFW/glfw3.h>    ///< For GLFW - only included on non-OpenHarmony platforms
+#endif
+
+
 // Data structure
 #include <EasyVulkan/DataStructures.hpp>
 

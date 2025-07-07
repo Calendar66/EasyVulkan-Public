@@ -215,7 +215,6 @@ struct CommandBufferInfo {
 /**
  * @brief Structure to track pipeline and its layout
  */
-
 struct PipelineInfo {
     VkPipeline pipeline; ///< Pipeline handle
     VkPipelineLayout pipelineLayout; ///< Pipeline layout handle
@@ -224,7 +223,6 @@ struct PipelineInfo {
 /**
  * @brief Structure to image and its view
  */
-
 struct ImageInfo {
     VkImage image; ///< Image handle
     VkImageView imageView; ///< Image view handle
@@ -234,6 +232,23 @@ struct ImageInfo {
     VkImageLayout layout; ///< Layout of the image
 };
 
+/**
+ * @brief Structure to buffer and its allocation
+ */
+struct BufferInfo {
+    VkBuffer buffer; ///< Buffer handle
+    VmaAllocation allocation; ///< VMA allocation handle
+    VkDeviceSize size; ///< Size of the buffer
+    VkBufferUsageFlags usage; ///< Buffer usage flags
+};
+
+/**
+ * @brief Structure to descriptor set and its pool
+ */
+struct DescriptorSetInfo {
+    VkDescriptorSet descriptorSet; ///< Descriptor set handle
+    VkDescriptorPool descriptorPool; ///< Associated descriptor pool
+};
 
 
 // Common type aliases for convenience

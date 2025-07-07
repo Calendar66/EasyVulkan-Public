@@ -15,6 +15,7 @@
 namespace ev {
 
 class VulkanDevice;
+class ResourceManager;
 
 /**
  * @class CommandPoolManager
@@ -212,6 +213,29 @@ public:
      * @return Command pool for single-time commands
      */
     VkCommandPool getSingleTimeCommandPool() const { return m_singleTimeCommandPool; }
+
+    /**
+     * @brief Clears all allocated command buffers for a specified command pool
+     * @param pool Command pool to clear buffers from
+     * @param resourceManager ResourceManager instance to update tracked resources
+     * @throws std::runtime_error if:
+     *         - Pool handle is invalid
+     *         - ResourceManager is nullptr
+     * 
+     * Example:
+     * @code
+     * // Clear all command buffers allocated from a specific pool
+     * commandPoolManager->clearCommandBuffers(graphicsPool, resourceManager);
+     * @endcode
+     * 
+     * @note This method:
+     *       - Frees all command buffers allocated from the specified pool
+     *       - Removes the freed command buffers from ResourceManager tracking
+     *       - Does not destroy the command pool itself
+     */
+    virtual void clearCommandBuffers(
+        VkCommandPool pool,
+        ResourceManager* resourceManager);
 
 protected:
     VulkanDevice* m_device;                  ///< Pointer to VulkanDevice instance

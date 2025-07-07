@@ -112,6 +112,167 @@ void copyBufferToImage(
         &region);
 }
 
+void copyImage(
+    VulkanDevice* device,
+    VkCommandBuffer commandBuffer,
+    VkImage srcImage,
+    VkImage dstImage,
+    VkImageLayout srcImageLayout,
+    VkImageLayout dstImageLayout,
+    VkImageAspectFlags srcAspectMask,
+    VkImageAspectFlags dstAspectMask,
+    uint32_t width,
+    uint32_t height,
+    uint32_t depth,
+    uint32_t baseMipLevel,
+    uint32_t levelCount,
+    uint32_t baseArrayLayer,
+    uint32_t layerCount) {
+    
+    validateCommandBuffer(commandBuffer);
+
+    // Transition source image to transfer source optimal layout
+    if (srcImageLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        VkImageMemoryBarrier srcBarrier{};
+        srcBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        srcBarrier.oldLayout = srcImageLayout;
+        srcBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        srcBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        srcBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        srcBarrier.image = srcImage;
+        srcBarrier.subresourceRange.aspectMask = srcAspectMask;
+        srcBarrier.subresourceRange.baseMipLevel = baseMipLevel;
+        srcBarrier.subresourceRange.levelCount = levelCount;
+        srcBarrier.subresourceRange.baseArrayLayer = baseArrayLayer;
+        srcBarrier.subresourceRange.layerCount = layerCount;
+        srcBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+        srcBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &srcBarrier
+        );
+    }
+
+    // Transition destination image to transfer destination optimal layout
+    if (dstImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        VkImageMemoryBarrier dstBarrier{};
+        dstBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        dstBarrier.oldLayout = dstImageLayout;
+        dstBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        dstBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        dstBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        dstBarrier.image = dstImage;
+        dstBarrier.subresourceRange.aspectMask = dstAspectMask;
+        dstBarrier.subresourceRange.baseMipLevel = baseMipLevel;
+        dstBarrier.subresourceRange.levelCount = levelCount;
+        dstBarrier.subresourceRange.baseArrayLayer = baseArrayLayer;
+        dstBarrier.subresourceRange.layerCount = layerCount;
+        dstBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+        dstBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &dstBarrier
+        );
+    }
+
+    // Perform the copy operation
+    VkImageCopy copyRegion{};
+    
+    // Source subresource
+    copyRegion.srcSubresource.aspectMask = srcAspectMask;
+    copyRegion.srcSubresource.mipLevel = baseMipLevel;
+    copyRegion.srcSubresource.baseArrayLayer = baseArrayLayer;
+    copyRegion.srcSubresource.layerCount = layerCount;
+    copyRegion.srcOffset = {0, 0, 0};
+    
+    // Destination subresource
+    copyRegion.dstSubresource.aspectMask = dstAspectMask;
+    copyRegion.dstSubresource.mipLevel = baseMipLevel;
+    copyRegion.dstSubresource.baseArrayLayer = baseArrayLayer;
+    copyRegion.dstSubresource.layerCount = layerCount;
+    copyRegion.dstOffset = {0, 0, 0};
+    
+    // Copy extent
+    copyRegion.extent = {width, height, depth};
+
+    vkCmdCopyImage(
+        commandBuffer,
+        srcImage,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        dstImage,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &copyRegion);
+
+    // Transition source image back to original layout
+    if (srcImageLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        VkImageMemoryBarrier srcBarrierBack{};
+        srcBarrierBack.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        srcBarrierBack.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        srcBarrierBack.newLayout = srcImageLayout;
+        srcBarrierBack.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        srcBarrierBack.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        srcBarrierBack.image = srcImage;
+        srcBarrierBack.subresourceRange.aspectMask = srcAspectMask;
+        srcBarrierBack.subresourceRange.baseMipLevel = baseMipLevel;
+        srcBarrierBack.subresourceRange.levelCount = levelCount;
+        srcBarrierBack.subresourceRange.baseArrayLayer = baseArrayLayer;
+        srcBarrierBack.subresourceRange.layerCount = layerCount;
+        srcBarrierBack.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        srcBarrierBack.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &srcBarrierBack
+        );
+    }
+
+    // Transition destination image back to original layout
+    if (dstImageLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        VkImageMemoryBarrier dstBarrierBack{};
+        dstBarrierBack.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        dstBarrierBack.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        dstBarrierBack.newLayout = dstImageLayout;
+        dstBarrierBack.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        dstBarrierBack.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        dstBarrierBack.image = dstImage;
+        dstBarrierBack.subresourceRange.aspectMask = dstAspectMask;
+        dstBarrierBack.subresourceRange.baseMipLevel = baseMipLevel;
+        dstBarrierBack.subresourceRange.levelCount = levelCount;
+        dstBarrierBack.subresourceRange.baseArrayLayer = baseArrayLayer;
+        dstBarrierBack.subresourceRange.layerCount = layerCount;
+        dstBarrierBack.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dstBarrierBack.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &dstBarrierBack
+        );
+    }
+}
+
 void validateCommandBuffer(VkCommandBuffer commandBuffer) {
     if (commandBuffer == VK_NULL_HANDLE) {
         throw std::runtime_error("Command buffer recording not started");

@@ -39,6 +39,7 @@ public:
      */
     explicit VulkanContext(bool enableValidationLayers = true);
     
+    
     /**
      * @brief Virtual destructor to ensure proper cleanup of derived classes
      */
@@ -59,13 +60,30 @@ public:
     void setDeviceExtensions(const std::vector<const char*>& extensions) { m_deviceExtensions = extensions; }
 
     /**
+     * @brief Sets additional instance extensions to be enabled during instance creation
+     * @param extensions List of extension names to enable
+     * @note Must be called before initialize()
+     */
+    void setInstanceExtensions(const std::vector<const char*>& extensions) { m_instanceExtensions = extensions; }
+
+#if !defined(__OHOS__)
+    /**
      * @brief Initializes the Vulkan instance, device, and associated managers
      * @param width Initial window width
      * @param height Initial window height
      * @throws std::runtime_error if initialization fails
      */
     virtual void initialize(uint32_t width, uint32_t height);
-
+#else
+    /**
+     * @brief Initializes the Vulkan instance, device, and associated managers
+     * @param width Initial window width
+     * @param height Initial window height
+     * @param window OHNativeWindow pointer
+     * @throws std::runtime_error if initialization fails
+     */
+    virtual void initializeOHOS(uint32_t width, uint32_t height,OHNativeWindow* window);
+#endif
     // Getters for managers
     VulkanDevice* getDevice() const { return m_device.get(); }
     SwapchainManager* getSwapchainManager() const { return m_swapchainManager.get(); }
@@ -111,12 +129,14 @@ private:
 
     // Helper methods
     bool checkValidationLayerSupport();
+    bool checkInstanceExtensionSupport(const std::vector<const char*>& extensions);
     std::vector<const char*> getRequiredExtensions();
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
     // Device customization options
     VkPhysicalDeviceFeatures m_deviceFeatures{};
     std::vector<const char*> m_deviceExtensions;
+    std::vector<const char*> m_instanceExtensions;
 };
 
 } // namespace ev 

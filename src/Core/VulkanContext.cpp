@@ -18,15 +18,43 @@ namespace {
         "VK_LAYER_KHRONOS_validation"
     };
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData) {
-        
-        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-        return VK_FALSE;
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT             messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void*                                       pUserData)
+{
+    // Only print warnings or worse
+    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        std::cerr << "Validation layer: " << pCallbackData->pMessage << std::endl;
+
+        // Print any queue labels (if you use vkQueueBeginDebugUtilsLabelEXT)
+        for (uint32_t i = 0; i < pCallbackData->queueLabelCount; i++) {
+            const auto& lbl = pCallbackData->pQueueLabels[i];
+            std::cerr << "\t[QueueLabel] " << lbl.pLabelName << std::endl;
+        }
+
+        // Print any command-buffer labels (if you use vkCmdBeginDebugUtilsLabelEXT)
+        for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
+            const auto& lbl = pCallbackData->pCmdBufLabels[i];
+            std::cerr << "\t[CmdBufLabel] " << lbl.pLabelName << std::endl;
+        }
+
+        // Print all objects with their debug names (aliases)
+        for (uint32_t i = 0; i < pCallbackData->objectCount; i++) {
+            const auto& obj = pCallbackData->pObjects[i];
+            std::cerr << "\t[Object] Type: " 
+                      << obj.objectType 
+                      << ", Handle: 0x" << std::hex << obj.objectHandle << std::dec 
+                      << ", Name: " 
+                      << (obj.pObjectName ? obj.pObjectName : "N/A")
+                      << std::endl;
+        }
     }
+
+    // Returning VK_FALSE tells Vulkan that we do NOT want to abort the call
+    return VK_FALSE;
+}
 
     VkResult CreateDebugUtilsMessengerEXT(
         VkInstance instance,
@@ -60,13 +88,15 @@ namespace {
 VulkanContext::VulkanContext(bool enableValidationLayers)
     : m_instance(VK_NULL_HANDLE)
     , m_debugMessenger(VK_NULL_HANDLE)
-    , m_enableValidationLayers(enableValidationLayers) {
+    , m_enableValidationLayers(enableValidationLayers)
+    , m_instanceExtensions({}) {
 }
 
 VulkanContext::~VulkanContext() {
     cleanup();
 }
 
+#if !defined(__OHOS__)
 void VulkanContext::initialize(uint32_t width, uint32_t height) {
     // Create instance
     createInstance();
@@ -78,7 +108,11 @@ void VulkanContext::initialize(uint32_t width, uint32_t height) {
 
     // Create window,curface and device
     m_device = std::make_unique<VulkanDevice>(m_instance, &m_deviceFeatures, &m_deviceExtensions);
-    m_device->initialize(width, height);
+    if(std::find(m_instanceExtensions.begin(), m_instanceExtensions.end(), "VK_KHR_get_physical_device_properties2") != m_instanceExtensions.end()) {
+        m_device->initialize(width, height, true);
+    } else {
+        m_device->initialize(width, height,false);
+    }
 
     // Create managers
     m_commandPoolManager = std::make_unique<CommandPoolManager>(m_device.get());
@@ -86,6 +120,31 @@ void VulkanContext::initialize(uint32_t width, uint32_t height) {
     m_synchronizationManager = std::make_unique<SynchronizationManager>(m_device.get());
     m_swapchainManager = std::make_unique<SwapchainManager>(m_device.get(),m_device->getSurface());
 }
+#else
+void VulkanContext::initializeOHOS(uint32_t width, uint32_t height,OHNativeWindow* window) {
+    // Create instance
+    createInstance();
+    
+    // Setup debug callbacks
+    if (m_enableValidationLayers) {
+        setupDebugCallbacks();
+    }
+
+    // Create window,curface and device
+    m_device = std::make_unique<VulkanDevice>(m_instance, &m_deviceFeatures, &m_deviceExtensions);
+    if(std::find(m_instanceExtensions.begin(), m_instanceExtensions.end(), "VK_KHR_get_physical_device_properties2") != m_instanceExtensions.end()) {
+        m_device->initializeOHOS(width, height, true,window);
+    } else {
+        m_device->initializeOHOS(width, height,false,window);
+    }
+
+    // Create managers
+    m_commandPoolManager = std::make_unique<CommandPoolManager>(m_device.get());
+    m_resourceManager = std::make_unique<ResourceManager>(m_device.get(),this);
+    m_synchronizationManager = std::make_unique<SynchronizationManager>(m_device.get());
+    m_swapchainManager = std::make_unique<SwapchainManager>(m_device.get(),m_device->getSurface());
+}
+#endif
 
 void VulkanContext::cleanup() {
     // Cleanup managers first
@@ -110,6 +169,11 @@ void VulkanContext::createInstance() {
         throw std::runtime_error("validation layers requested, but not available!");
     }
 
+    auto extensions = getRequiredExtensions();
+    if (!checkInstanceExtensionSupport(extensions)) {
+        throw std::runtime_error("some requested instance extensions are not available!");
+    }
+
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "EasyVulkan Application";
@@ -122,13 +186,9 @@ void VulkanContext::createInstance() {
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    auto extensions = getRequiredExtensions();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
-
-    #ifdef __APPLE__
-    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    #endif
+    
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (m_enableValidationLayers) {
@@ -142,8 +202,10 @@ void VulkanContext::createInstance() {
         createInfo.pNext = nullptr;
     }
 
-    if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance!");
+    VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
+    if (result != VK_SUCCESS) {
+        std::string errorMsg = "failed to create instance! Error code: " + std::to_string(result);
+        throw std::runtime_error(errorMsg);
     }
 }
 
@@ -181,6 +243,32 @@ bool VulkanContext::checkValidationLayerSupport() {
     return true;
 }
 
+bool VulkanContext::checkInstanceExtensionSupport(const std::vector<const char*>& extensions) {
+    uint32_t extensionCount;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
+
+    for (const char* extensionName : extensions) {
+        bool extensionFound = false;
+
+        for (const auto& extensionProperties : availableExtensions) {
+            if (strcmp(extensionName, extensionProperties.extensionName) == 0) {
+                extensionFound = true;
+                break;
+            }
+        }
+
+        if (!extensionFound) {
+            std::cerr << "Warning: Extension " << extensionName << " not found!" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 std::vector<const char*> VulkanContext::getRequiredExtensions() {
     std::vector<const char*> extensions;
 
@@ -193,13 +281,17 @@ std::vector<const char*> VulkanContext::getRequiredExtensions() {
     extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     #elif defined(_WIN32)
     extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-    #elif defined(__linux__)
-    extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+    #elif defined(__OHOS__)
+    extensions.push_back(VK_OHOS_SURFACE_EXTENSION_NAME);
     #endif
 
     if (m_enableValidationLayers) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
+    // Add custom instance extensions
+    for (const auto& extension : m_instanceExtensions) {
+        extensions.push_back(extension);
     }
 
     return extensions;

@@ -1,6 +1,9 @@
 #include "EasyVulkan/Core/CommandPoolManager.hpp"
 #include "EasyVulkan/Core/VulkanDevice.hpp"
+#include "EasyVulkan/Core/ResourceManager.hpp"
 #include <stdexcept>
+#include <vector>
+#include <algorithm>
 
 namespace ev {
 
@@ -101,6 +104,49 @@ void CommandPoolManager::resetCommandPool(
     VkCommandPoolResetFlags flags) {
     
     vkResetCommandPool(m_device->getLogicalDevice(), pool, flags);
+}
+
+void CommandPoolManager::clearCommandBuffers(
+    VkCommandPool pool,
+    ResourceManager* resourceManager) {
+    
+    if (pool == VK_NULL_HANDLE) {
+        throw std::runtime_error("Invalid command pool handle");
+    }
+    
+    if (!resourceManager) {
+        throw std::runtime_error("ResourceManager cannot be null");
+    }
+    
+    VkDevice device = m_device->getLogicalDevice();
+    
+    // Collect command buffers to free
+    std::vector<VkCommandBuffer> commandBuffersToFree;
+    std::vector<std::string> keysToRemove;
+    
+    // Find all command buffers associated with this pool
+    for (const auto& pair : resourceManager->m_commandBuffers) {
+        const auto& info = pair.second;
+        if (info.commandPool == pool) {
+            commandBuffersToFree.push_back(info.commandBuffer);
+            keysToRemove.push_back(pair.first);
+        }
+    }
+    
+    // Free the command buffers if any were found
+    if (!commandBuffersToFree.empty()) {
+        vkFreeCommandBuffers(
+            device,
+            pool,
+            static_cast<uint32_t>(commandBuffersToFree.size()),
+            commandBuffersToFree.data()
+        );
+        
+        // Remove the freed command buffers from ResourceManager tracking
+        for (const auto& key : keysToRemove) {
+            resourceManager->m_commandBuffers.erase(key);
+        }
+    }
 }
 
 void CommandPoolManager::cleanup() {

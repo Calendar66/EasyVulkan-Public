@@ -405,6 +405,108 @@ void copyBufferToImage(
     uint32_t height,
     uint32_t layers = 1);
 
+
+
+/**
+ * @brief Copies data from one image to another image with automatic layout transitions
+ * @details Records a complete image copy operation including automatic layout transitions.
+ *          The function performs the following operations:
+ *          1. Transitions source image to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL (if needed)
+ *          2. Transitions destination image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL (if needed)
+ *          3. Performs the vkCmdCopyImage operation
+ *          4. Transitions source image back to original layout (if needed)
+ *          5. Transitions destination image back to original layout (if needed)
+ *          
+ *          The copy operation supports:
+ *          - Copying between different image formats (with compatible formats)
+ *          - Copying specific mip levels and array layers
+ *          - Copying with different aspect masks for source and destination
+ *          - Automatic layout management for seamless integration
+ * 
+ * @param device The Vulkan device that owns the images
+ * @param commandBuffer The command buffer to record the copy command into
+ * @param srcImage The source image to copy from
+ * @param dstImage The destination image to copy to
+ * @param srcImageLayout The current layout of the source image (will be preserved)
+ * @param dstImageLayout The current layout of the destination image (will be preserved)
+ * @param srcAspectMask The aspect mask for the source image (e.g., VK_IMAGE_ASPECT_COLOR_BIT)
+ * @param dstAspectMask The aspect mask for the destination image (e.g., VK_IMAGE_ASPECT_COLOR_BIT)
+ * @param width The width of the region to copy
+ * @param height The height of the region to copy
+ * @param depth The depth of the region to copy (defaults to 1 for 2D images)
+ * @param baseMipLevel The base mip level to copy from/to (defaults to 0)
+ * @param levelCount The number of mip levels to copy (defaults to 1)
+ * @param baseArrayLayer The base array layer to copy from/to (defaults to 0)
+ * @param layerCount The number of array layers to copy (defaults to 1)
+ * 
+ * @throws std::runtime_error if command buffer validation fails
+ * 
+ * @note - Both images must have compatible formats and the specified region must be within
+ *         the bounds of both images.
+ *       - The function handles all necessary layout transitions automatically, so images
+ *         can be in any valid layout before and after the operation.
+ *       - Pipeline barriers are inserted to ensure proper synchronization between
+ *         layout transitions and the copy operation.
+ *       - The original layouts are preserved after the copy operation completes.
+ * 
+ * Simple usage example:
+ * @code
+ * // Copy entire 2D image (layouts handled automatically)
+ * CommandUtils::copyImage(
+ *     device,
+ *     cmdBuffer,
+ *     srcImage,
+ *     dstImage,
+ *     VK_IMAGE_LAYOUT_GENERAL,  // Current source layout
+ *     VK_IMAGE_LAYOUT_GENERAL,  // Current destination layout
+ *     VK_IMAGE_ASPECT_COLOR_BIT,
+ *     VK_IMAGE_ASPECT_COLOR_BIT,
+ *     1920,  // width
+ *     1080   // height
+ * );
+ * // Both images are back to VK_IMAGE_LAYOUT_GENERAL after completion
+ * @endcode
+ * 
+ * Advanced usage example:
+ * @code
+ * // Copy from compute shader output to graphics input
+ * CommandUtils::copyImage(
+ *     device,
+ *     cmdBuffer,
+ *     computeOutputImage,
+ *     graphicsInputImage,
+ *     VK_IMAGE_LAYOUT_GENERAL,                    // Compute output layout
+ *     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,   // Graphics input layout
+ *     VK_IMAGE_ASPECT_COLOR_BIT,
+ *     VK_IMAGE_ASPECT_COLOR_BIT,
+ *     512,  // width
+ *     512,  // height
+ *     64,   // depth
+ *     2,    // base mip level
+ *     1,    // level count
+ *     0,    // base array layer
+ *     4     // layer count
+ * );
+ * // Images retain their original layouts after copy
+ * @endcode
+ */
+void copyImage(
+    VulkanDevice* device,
+    VkCommandBuffer commandBuffer,
+    VkImage srcImage,
+    VkImage dstImage,
+    VkImageLayout srcImageLayout,
+    VkImageLayout dstImageLayout,
+    VkImageAspectFlags srcAspectMask,
+    VkImageAspectFlags dstAspectMask,
+    uint32_t width,
+    uint32_t height,
+    uint32_t depth = 1,
+    uint32_t baseMipLevel = 0,
+    uint32_t levelCount = 1,
+    uint32_t baseArrayLayer = 0,
+    uint32_t layerCount = 1);
+
 /* -------------------------------------------------------------------------- */
 /*                                    Clear                                   */
 /* -------------------------------------------------------------------------- */

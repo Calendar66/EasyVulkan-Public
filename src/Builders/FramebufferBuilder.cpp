@@ -15,6 +15,11 @@ FramebufferBuilder& FramebufferBuilder::addAttachment(VkImageView attachment) {
     return *this;
 }
 
+FramebufferBuilder& FramebufferBuilder::addAttachments(const std::vector<VkImageView>& attachments) {
+    m_attachments.insert(m_attachments.end(), attachments.begin(), attachments.end());
+    return *this;
+}
+
 FramebufferBuilder& FramebufferBuilder::setDimensions(
     uint32_t width,
     uint32_t height,

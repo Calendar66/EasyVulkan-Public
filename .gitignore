@@ -1,2 +1,4 @@
 build/
 docs/
+.cursor/
+CLAUDE.md

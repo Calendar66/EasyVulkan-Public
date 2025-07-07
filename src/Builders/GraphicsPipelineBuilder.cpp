@@ -275,7 +275,7 @@ VkPipeline GraphicsPipelineBuilder::build(const std::string& name) {
     // Register the pipeline for resource tracking if a name is provided
     if (!name.empty()) {
         auto *resourceManager = m_context->getResourceManager();
-        resourceManager->registerResource2(name,
+        resourceManager->registerResource(name,
                                         reinterpret_cast<uint64_t>(pipeline),
                                         reinterpret_cast<uint64_t>(m_layout),
                                         VK_OBJECT_TYPE_PIPELINE);

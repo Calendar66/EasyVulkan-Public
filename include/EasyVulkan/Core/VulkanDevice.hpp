@@ -8,7 +8,7 @@
 #pragma once
 
 #include "../Common.hpp"
-#include <GLFW/glfw3.h>
+ 
 
 namespace ev {
 
@@ -94,11 +94,13 @@ public:
      */
     VmaAllocator getAllocator() const { return m_allocator; }
 
+#if !defined(__OHOS__)
     /**
      * @brief Get the window handle
      * @return GLFWwindow* Window handle
      */
     GLFWwindow* getWindow() const { return m_window; }
+#endif
 
     /**
      * @brief Get the surface handle
@@ -106,18 +108,34 @@ public:
      */
     VkSurfaceKHR getSurface() const { return m_surface; }
 
+#if !defined(__OHOS__)
     /**
      * @brief Initializes the device by selecting physical device and creating logical device
      * @param width Initial window width
      * @param height Initial window height
+     * @param enableMemoryBudget Whether to enable memory budget
      * @throws std::runtime_error if device creation fails
      * @details This method:
      *          1. Selects a suitable physical device
      *          2. Creates a logical device with required queues
      *          3. Sets up the memory allocator
      */
-    virtual void initialize(uint32_t width, uint32_t height);
+    virtual void initialize(uint32_t width, uint32_t height, bool enableMemoryBudget);
+#else    
+    /**
+     * @brief Initializes the device for OHOS
+     * @param width Initial window width
+     * @param height Initial window height
+     * @param enableMemoryBudget Whether to enable memory budget
+     * @param window OHNativeWindow pointer
+     * @throws std::runtime_error if device creation fails
+     */
+    virtual void initializeOHOS(uint32_t width, uint32_t height, bool enableMemoryBudget,OHNativeWindow* window);
 
+#endif
+
+
+#if !defined(__OHOS__)
     /**
      * @brief Create a window with the specified dimensions
      * @param width Window width
@@ -125,6 +143,7 @@ public:
      * @param title Window title
      */
     void createWindow(uint32_t width, uint32_t height, const char* title);
+#endif
 
 protected:
     /**
@@ -168,10 +187,19 @@ protected:
         }
     };
 
+#if !defined(__OHOS__)
     /**
      * @brief Create the Vulkan surface for the window
      */
     virtual void createSurface();
+#else
+    /**
+     * @brief Create the Vulkan surface for the OHOS window
+     */
+    virtual void createSurfaceOHOS(OHNativeWindow* window);
+#endif
+
+
 
 private:
     VkInstance m_instance;                  ///< Vulkan instance handle
@@ -185,7 +213,12 @@ private:
 
     QueueFamilyIndices m_queueFamilyIndices; ///< Queue family indices
 
+#if !defined(OHOS)
     GLFWwindow* m_window{nullptr};      ///< GLFW window handle
+#else
+    OHNativeWindow* m_window{nullptr};      ///< OHOS window handle
+#endif
+
     VkSurfaceKHR m_surface{VK_NULL_HANDLE}; ///< Vulkan surface handle
 
     /**
@@ -211,9 +244,10 @@ private:
 
     /**
      * @brief Set up the VMA allocator
+     * @param enableMemoryBudget Whether to enable memory budget
      * @throws std::runtime_error if allocator creation fails
      */
-    void setupAllocator();
+    void setupAllocator(bool enableMemoryBudget);
 
     /**
      * @brief Get list of required device extensions

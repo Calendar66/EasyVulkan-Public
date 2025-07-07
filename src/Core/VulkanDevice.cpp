@@ -24,10 +24,12 @@ VulkanDevice::VulkanDevice(VkInstance instance,
     , m_computeQueue(VK_NULL_HANDLE)
     , m_transferQueue(VK_NULL_HANDLE) {
     
+#if !defined(OHOS)
     // Initialize GLFW
     if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW!");
     }
+#endif
 
     // Store device features if provided
     if (deviceFeatures) {
@@ -53,13 +55,16 @@ VulkanDevice::~VulkanDevice() {
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
         m_surface = VK_NULL_HANDLE;
     }
+#if !defined(OHOS)
     if (m_window != nullptr) {
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
     glfwTerminate();
+#endif
 }
 
+#if !defined(OHOS)
 void VulkanDevice::createWindow(uint32_t width, uint32_t height, const char* title) {
     // Tell GLFW not to create an OpenGL context
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -71,7 +76,9 @@ void VulkanDevice::createWindow(uint32_t width, uint32_t height, const char* tit
         throw std::runtime_error("Failed to create GLFW window!");
     }
 }
+#endif
 
+#if !defined(__OHOS__)
 void VulkanDevice::createSurface() {
     if (m_window == nullptr) {
         throw std::runtime_error("Window must be created before surface!");
@@ -82,16 +89,45 @@ void VulkanDevice::createSurface() {
         throw std::runtime_error("Failed to create window surface!");
     }
 }
+#else
+void VulkanDevice::createSurfaceOHOS(OHNativeWindow* window) {
+    if (window == nullptr) {
+        throw std::runtime_error("OHOS Window must be created before surface!");
+    }
+    m_window = window;
 
-void VulkanDevice::initialize(uint32_t width, uint32_t height) {
+    VkSurfaceCreateInfoOHOS surfaceCreateInfo = {};
+    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_SURFACE_CREATE_INFO_OHOS;
+    surfaceCreateInfo.window = window;
+    int err = vkCreateSurfaceOHOS(m_instance, &surfaceCreateInfo, NULL, &m_surface);
+    if (err != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create window surface!");
+    }
+}
+#endif
+
+
+
+
+#if !defined(__OHOS__)
+void VulkanDevice::initialize(uint32_t width, uint32_t height, bool enableMemoryBudget) {
     // Create window and surface first as they are needed for device selection
     createWindow(width, height, "EasyVulkan");
     createSurface();
-    
     pickPhysicalDevice();
     createLogicalDevice();
-    setupAllocator();
+    setupAllocator(enableMemoryBudget);
 }
+#else
+void VulkanDevice::initializeOHOS(uint32_t width, uint32_t height, bool enableMemoryBudget,OHNativeWindow* window) {
+    // Create window and surface first as they are needed for device selection
+    createSurfaceOHOS(window);
+    pickPhysicalDevice();
+    createLogicalDevice();
+    setupAllocator(enableMemoryBudget);
+}
+#endif
+
 
 void VulkanDevice::pickPhysicalDevice() {
     uint32_t deviceCount = 0;
@@ -247,12 +283,17 @@ std::vector<const char*> VulkanDevice::getRequiredDeviceExtensions() {
     return deviceExtensions;
 }
 
-void VulkanDevice::setupAllocator() {
+void VulkanDevice::setupAllocator(bool enableMemoryBudget) {
     VmaAllocatorCreateInfo allocatorInfo{};
     allocatorInfo.physicalDevice = m_physicalDevice;
     allocatorInfo.device = m_device;
     allocatorInfo.instance = m_instance;
-    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_0;
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+    
+    // Enable memory budget extension for better memory usage tracking
+    if(enableMemoryBudget) {
+        allocatorInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    }
 
     if (vmaCreateAllocator(&allocatorInfo, &m_allocator) != VK_SUCCESS) {
         throw std::runtime_error("failed to create VMA allocator!");

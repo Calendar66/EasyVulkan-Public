@@ -68,7 +68,7 @@ std::vector<VkCommandBuffer> CommandBufferBuilder::createCommandBuffers(const st
         for (size_t i = 0; i < std::min(names.size(), commandBuffers.size()); ++i) {
             if (!names[i].empty()) {
                 auto* resourceManager = m_context->getResourceManager();
-                resourceManager->registerResource2(
+                resourceManager->registerResource(
                     names[i],
                     reinterpret_cast<uint64_t>(commandBuffers[i]),
                     reinterpret_cast<uint64_t>(m_commandPool),

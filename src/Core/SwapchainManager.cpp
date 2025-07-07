@@ -173,6 +173,12 @@ VkExtent2D SwapchainManager::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& ca
 void SwapchainManager::cleanup() {
     VkDevice device = m_device->getLogicalDevice();
 
+    // Destroy framebuffers
+    for (auto framebuffer : m_swapchainFramebuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+    m_swapchainFramebuffers.clear();
+
     for (auto imageView : m_swapchainImageViews) {
         vkDestroyImageView(device, imageView, nullptr);
     }

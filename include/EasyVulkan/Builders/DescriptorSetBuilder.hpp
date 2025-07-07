@@ -178,6 +178,13 @@ public:
      */
     VkDescriptorSet buildWithLayout(const std::string& name = "");
 
+    /**
+     * @brief Updates a descriptor set with current descriptors
+     * @param descriptorSet Descriptor set to update
+     * @throws std::runtime_error if update fails
+     */
+    void updateDescriptorSet(VkDescriptorSet descriptorSet);
+
 private:
     VulkanDevice* m_device;                  ///< Pointer to VulkanDevice instance
     VulkanContext* m_context;                ///< Pointer to VulkanContext instance
@@ -187,10 +194,12 @@ private:
 
     // Write descriptors
     std::vector<VkWriteDescriptorSet> m_writes;                    ///< Descriptor write operations
+    std::vector<bool> m_writeUpdated;                              ///< Track which writes have been updated
     // (NOTE:If we want to add more than 16 buffer descriptors, we need to change the size of the vector)
-    // This is because we need to avoid memory reallocation when adding new descriptors
-    std::vector<VkDescriptorBufferInfo> m_bufferInfos{16};            ///< Buffer descriptor info with pre-reserved memory
-    std::vector<VkDescriptorImageInfo> m_imageInfos{16};          ///< Image descriptor info with pre-reserved memory
+    std::vector<VkDescriptorBufferInfo> m_bufferInfos{32};            ///< Buffer descriptor info with pre-reserved memory
+    unsigned int m_bufferInfoCount = 0;           ///< Number of buffer info
+    std::vector<VkDescriptorImageInfo> m_imageInfos{32};          ///< Image descriptor info with pre-reserved memory
+    unsigned int m_imageInfoCount = 0;           ///< Number of image info
 
     /**
      * @brief Validates binding configuration
@@ -204,13 +213,6 @@ private:
      * @throws std::runtime_error if pool creation fails
      */
     VkDescriptorPool createPool() const;
-
-    /**
-     * @brief Updates a descriptor set with current descriptors
-     * @param descriptorSet Descriptor set to update
-     * @throws std::runtime_error if update fails
-     */
-    void updateDescriptorSet(VkDescriptorSet descriptorSet) const;
 };
 
 } // namespace ev 

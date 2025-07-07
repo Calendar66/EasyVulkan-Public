@@ -136,14 +136,8 @@ VkImage ImageBuilder::createImage(VmaAllocation* outAllocation) const {
 
 
     VkImage image;
-    VmaAllocation allocation;
-
-    if (vmaCreateImage(m_device->getAllocator(), &imageInfo, &allocInfo, &image, &allocation, nullptr) != VK_SUCCESS) {
+    if (vmaCreateImage(m_device->getAllocator(), &imageInfo, &allocInfo, &image, outAllocation, nullptr) != VK_SUCCESS) {
         throw std::runtime_error("failed to create image!");
-    }
-
-    if (outAllocation) {
-        *outAllocation = allocation;
     }
 
     return image;
@@ -228,7 +222,8 @@ void ImageBuilder::transitionImageLayout(
 void ImageBuilder::uploadData(
     ImageInfo imageInfo,
     const void* data,
-    VkDeviceSize dataSize) const {
+    VkDeviceSize dataSize,
+    VkImageLayout finalImageLayout) const {
     
     // Create staging buffer
     VkBuffer stagingBuffer;
@@ -277,8 +272,7 @@ void ImageBuilder::uploadData(
     cmdPool->endSingleTimeCommands(cmdBuffer);
 
     // Transition image layout for shader access
-    ev::ResourceUtils::transitionImageLayoutWithInfo(m_device, m_context->getCommandPoolManager()->getSingleTimeCommandPool(), imageInfo, VK_IMAGE_LAYOUT_GENERAL);
-
+    ev::ResourceUtils::transitionImageLayoutWithInfo(m_device, m_context->getCommandPoolManager()->getSingleTimeCommandPool(), imageInfo, finalImageLayout);
 
 
     // Cleanup staging buffer
@@ -293,21 +287,24 @@ ImageInfo ImageBuilder::build(
     outAllocation = &localAllocation;
 
     validateParameters();
-    VkImage image = createImage(outAllocation);
-    VkImageView imageView = createImageView(image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, name);
+
     ImageInfo imageInfo;
+    VkImage image = createImage(&imageInfo.allocation);
+    VkImageView imageView = createImageView(image, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, name);
+    
     imageInfo.image = image;
     imageInfo.imageView = imageView;
-    imageInfo.allocation = *outAllocation;
     imageInfo.width = m_extent.width;
     imageInfo.height = m_extent.height;
     imageInfo.layout = m_initialLayout;
 
     // Register the image for resource tracking if a name is provided
     if (!name.empty()) {
-        m_context->getResourceManager()->registerResource2(
-            name, reinterpret_cast<uint64_t>(image), reinterpret_cast<uint64_t>(imageView), VK_OBJECT_TYPE_IMAGE);
+        m_context->getResourceManager()->registerResource(
+            name, reinterpret_cast<uint64_t>(image), imageView, imageInfo.allocation, m_extent.width, m_extent.height, m_initialLayout, VK_OBJECT_TYPE_IMAGE);
     }
+
+    outAllocation = &imageInfo.allocation;
 
     return imageInfo;
 }
@@ -317,7 +314,8 @@ ImageInfo ImageBuilder::buildAndInitialize(
     const void* data,
     VkDeviceSize dataSize,
     const std::string& name,
-    VmaAllocation* outAllocation) {
+    VmaAllocation* outAllocation,
+    VkImageLayout finalImageLayout) {
     
     if (!data || dataSize == 0) {
         throw std::runtime_error("Invalid data or data size");
@@ -331,7 +329,7 @@ ImageInfo ImageBuilder::buildAndInitialize(
     ImageInfo imageInfo = build(name, outAllocation);
 
     // Upload the data
-    uploadData(imageInfo, data, dataSize);
+    uploadData(imageInfo, data, dataSize, finalImageLayout);
 
 
     return imageInfo;

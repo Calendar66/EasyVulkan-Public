@@ -122,7 +122,7 @@ VkBuffer BufferBuilder::build(const std::string &name,
   // Register the buffer for resource tracking if a name is provided
   if (!name.empty()) {
     m_context->getResourceManager()->registerResource(
-        name, reinterpret_cast<uint64_t>(buffer), VK_OBJECT_TYPE_BUFFER);
+        name, reinterpret_cast<uint64_t>(buffer),*outAllocation, m_size, m_usage, VK_OBJECT_TYPE_BUFFER);
   }
 
   return buffer;

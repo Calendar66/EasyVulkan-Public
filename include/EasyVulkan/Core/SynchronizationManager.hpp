@@ -161,7 +161,7 @@ public:
      * Example:
      * @code
      * // Setup triple buffering
-     * syncManager->createFrameSynchronization(3);
+     * syncManager->createFrameSynchronization(frameNum);
      * @endcode
      */
     virtual void createFrameSynchronization(uint32_t framesInFlight);

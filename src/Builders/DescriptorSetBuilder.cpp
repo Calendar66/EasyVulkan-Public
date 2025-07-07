@@ -35,7 +35,7 @@ DescriptorSetBuilder &DescriptorSetBuilder::addBufferDescriptor(
   bufferInfo.buffer = buffer;
   bufferInfo.offset = offset;
   bufferInfo.range = range;
-  m_bufferInfos.push_back(bufferInfo);
+  m_bufferInfos[m_bufferInfoCount++] = bufferInfo;
 
   VkWriteDescriptorSet write{};
   write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -43,9 +43,10 @@ DescriptorSetBuilder &DescriptorSetBuilder::addBufferDescriptor(
   write.dstArrayElement = 0;
   write.descriptorType = type;
   write.descriptorCount = 1;
-  write.pBufferInfo = &m_bufferInfos.back();
+  write.pBufferInfo = &m_bufferInfos[m_bufferInfoCount-1];
 
   m_writes.push_back(write);
+  m_writeUpdated.push_back(false);
   return *this;
 }
 
@@ -59,7 +60,7 @@ DescriptorSetBuilder &DescriptorSetBuilder::addImageDescriptor(
   if (sampler != VK_NULL_HANDLE) {  
     imageInfo.sampler = sampler;
   }
-  m_imageInfos.push_back(imageInfo);
+  m_imageInfos[m_imageInfoCount++] = imageInfo;
 
 
   VkWriteDescriptorSet write{};
@@ -68,10 +69,11 @@ DescriptorSetBuilder &DescriptorSetBuilder::addImageDescriptor(
   write.dstArrayElement = 0;
   write.descriptorType = type;
   write.descriptorCount = 1;
-  write.pImageInfo = &m_imageInfos.back();
+  write.pImageInfo = &m_imageInfos[m_imageInfoCount-1];
 
 
   m_writes.push_back(write);
+  m_writeUpdated.push_back(false);
   return *this;
 }
 
@@ -141,16 +143,23 @@ VkDescriptorPool DescriptorSetBuilder::createPool() const {
 }
 
 void DescriptorSetBuilder::updateDescriptorSet(
-    VkDescriptorSet descriptorSet) const {
-  // Update all write descriptor sets with the created descriptor set
-  std::vector<VkWriteDescriptorSet> writes = m_writes;
-  for (auto &write : writes) {
-    write.dstSet = descriptorSet;
+    VkDescriptorSet descriptorSet) {
+  // Only update writes that haven't been updated yet
+  std::vector<VkWriteDescriptorSet> pendingWrites;
+  for (size_t i = 0; i < m_writes.size(); ++i) {
+    if (!m_writeUpdated[i]) {
+      VkWriteDescriptorSet write = m_writes[i];
+      write.dstSet = descriptorSet;
+      pendingWrites.push_back(write);
+      m_writeUpdated[i] = true;
+    }
   }
 
-  vkUpdateDescriptorSets(m_device->getLogicalDevice(),
-                         static_cast<uint32_t>(writes.size()), writes.data(), 0,
-                         nullptr);
+  if (!pendingWrites.empty()) {
+    vkUpdateDescriptorSets(m_device->getLogicalDevice(),
+                         static_cast<uint32_t>(pendingWrites.size()), 
+                         pendingWrites.data(), 0, nullptr);
+  }
 }
 
 VkDescriptorSetLayout
@@ -208,6 +217,7 @@ VkDescriptorSet DescriptorSetBuilder::build(VkDescriptorSetLayout layout,
     auto *resourceManager = m_context->getResourceManager();
     resourceManager->registerResource(name,
                                       reinterpret_cast<uint64_t>(descriptorSet),
+                                      reinterpret_cast<uint64_t>(pool),
                                       VK_OBJECT_TYPE_DESCRIPTOR_SET);
   }
 

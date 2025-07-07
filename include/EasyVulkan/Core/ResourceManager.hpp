@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 
 namespace ev {
@@ -69,10 +70,10 @@ public:
     VulkanContext* m_context;  ///< Pointer to VulkanContext instance
 
     // Resource tracking maps
-    std::unordered_map<std::string, VkBuffer> m_buffers;           ///< Buffer handles
+    std::unordered_map<std::string, BufferInfo> m_buffers;        ///< Buffer handles with VMA allocations
     std::unordered_map<std::string, ImageInfo> m_images;            ///< Image handles
     std::unordered_map<std::string, VkDescriptorSetLayout> m_descriptorSetLayouts; ///< Descriptor set layout handles
-    std::unordered_map<std::string, VkDescriptorSet> m_descriptorSets; ///< Descriptor set handles
+    std::unordered_map<std::string, DescriptorSetInfo> m_descriptorSetInfos; ///< Descriptor set handles
     std::unordered_map<std::string, VkRenderPass> m_renderPasses; ///< Render pass handles
     std::unordered_map<std::string, VkFramebuffer> m_framebuffers; ///< Framebuffer handles
     std::unordered_map<std::string, VkSampler> m_samplers;        ///< Sampler handles
@@ -110,7 +111,7 @@ public:
      *     .build("vertices");
      * @endcode
      */
-    virtual BufferBuilder& createBuffer();
+    virtual BufferBuilder createBuffer();
 
     /**
      * @brief Creates an image builder for textures, attachments, etc.
@@ -128,7 +129,7 @@ public:
      *     .build("texture");
      * @endcode
      */
-    virtual ImageBuilder& createImage();
+    virtual ImageBuilder createImage();
 
     /**
      * @brief Creates a graphics pipeline builder
@@ -151,7 +152,7 @@ public:
      *     .build("mainPipeline");
      * @endcode
      */
-    virtual GraphicsPipelineBuilder& createGraphicsPipeline();
+    virtual GraphicsPipelineBuilder createGraphicsPipeline();
 
     /**
      * @brief Creates a compute pipeline builder
@@ -165,7 +166,7 @@ public:
      *     .build("computePipeline");
      * @endcode
      */
-    virtual ComputePipelineBuilder& createComputePipeline();
+    virtual ComputePipelineBuilder createComputePipeline();
 
     /**
      * @brief Creates a descriptor set builder
@@ -184,7 +185,7 @@ public:
      *     .build("mainDescriptorSet");
      * @endcode
      */
-    virtual DescriptorSetBuilder& createDescriptorSet();
+    virtual DescriptorSetBuilder createDescriptorSet();
 
     /**
      * @brief Creates a render pass builder
@@ -202,7 +203,7 @@ public:
      *     .build("mainRenderPass");
      * @endcode
      */
-    virtual RenderPassBuilder& createRenderPass();
+    virtual RenderPassBuilder createRenderPass();
 
     /**
      * @brief Creates a framebuffer builder
@@ -218,7 +219,7 @@ public:
      *     .build("mainFramebuffer");
      * @endcode
      */
-    virtual FramebufferBuilder& createFramebuffer();
+    virtual FramebufferBuilder createFramebuffer();
 
     /**
      * @brief Creates a command buffer builder
@@ -232,7 +233,7 @@ public:
      *     .build("mainCommandBuffer");
      * @endcode
      */
-    virtual CommandBufferBuilder& createCommandBuffer();
+    virtual CommandBufferBuilder createCommandBuffer();
 
     /**
      * @brief Creates a sampler builder
@@ -248,7 +249,7 @@ public:
      *     .build("textureSampler");
      * @endcode
      */
-    virtual SamplerBuilder& createSampler();
+    virtual SamplerBuilder createSampler();
 
     /**
      * @brief Creates a shader module builder
@@ -261,10 +262,10 @@ public:
      *     .build("vertexShader");
      * @endcode
      */
-    virtual ShaderModuleBuilder& createShaderModule();
+    virtual ShaderModuleBuilder createShaderModule();
 
     /**
-     * @brief Registers a resource for tracking and debugging
+     * @brief Registers a resource for tracking and debugging(For RenderPass, Framebuffer, Sampler, ShaderModule)
      * @param name Resource name/identifier
      * @param handle Raw Vulkan handle
      * @param type Vulkan object type
@@ -274,15 +275,153 @@ public:
                                 VkObjectType type);
 
     /**
-     * @brief Registers a resource for tracking and debugging with two handles
+     * @brief Registers a resource for tracking and debugging with VMA allocation(For Buffer)
+     * @param name Resource name/identifier
+     * @param handle Raw Vulkan handle
+     * @param allocation VMA allocation handle
+     * @param size Size of the resource (for buffers)
+     * @param usage Usage flags (for buffers)
+     * @param type Vulkan object type
+     * @throws std::runtime_error if resource registration fails
+     */
+    virtual void registerResource(const std::string& name, uint64_t handle,
+                                VmaAllocation allocation, VkDeviceSize size, 
+                                VkBufferUsageFlags usage, VkObjectType type);
+
+    /**
+     * @brief Registers a resource for tracking and debugging with VMA allocation(For Image)
+     * @param name Resource name/identifier
+     * @param handle Raw Vulkan handle
+     * @param imageView Image view handle
+     * @param allocation VMA allocation handle
+     * @param width Width of the image
+     * @param height Height of the image
+     * @param initialLayout Initial layout of the image
+     * @param type Vulkan object type
+     * @throws std::runtime_error if resource registration fails
+     */
+    virtual void registerResource(const std::string& name, uint64_t handle,VkImageView imageView,
+                                    VmaAllocation allocation,  uint32_t width, uint32_t height, VkImageLayout layout, VkObjectType type);
+
+    /**
+     * @brief Registers a resource for tracking and debugging with two handles(For Pipeline, DescriptorSet, CommandBuffer)
      * @param name Resource name/identifier
      * @param primaryHandle Raw Vulkan handle
      * @param secondaryHandle Raw Vulkan handle
      * @param type Vulkan object type
      * @throws std::runtime_error if resource registration fails
      */
-    virtual void registerResource2(const std::string& name, uint64_t primaryHandle,
+    virtual void registerResource(const std::string& name, uint64_t primaryHandle,
                                 uint64_t secondaryHandle, VkObjectType type);
+
+
+    /**
+     * @brief Clears a resource from tracking
+     * @param name Resource name/identifier
+     * @param type Vulkan object type
+     * @return true if the resource was found and cleared, false otherwise
+     * 
+     * This function removes a resource from tracking without destroying it.
+     * It automatically handles both single-handle and dual-handle resources
+     * based on the resource type.
+     * 
+     * Example usage:
+     * @code
+     * // Remove a buffer from tracking (single handle)
+     * resourceManager->clearResource("myVertexBuffer", VK_OBJECT_TYPE_BUFFER);
+     * 
+     * @endcode
+     * 
+     * @note This does not destroy the resource, it only removes it from tracking.
+     *       You are responsible for properly destroying the resource afterward.
+     *       20250613：I will add some more functions to clear the resource.
+     */
+    virtual bool clearResource(const std::string& name, VkObjectType type);
+
+    /**
+     * @brief Get memory usage statistics for all memory heaps
+     * @return Vector of VmaBudget structures containing memory usage information for each heap
+     * 
+     * This function retrieves detailed memory usage statistics for all memory heaps,
+     * including current usage, budget, and allocation counts.
+     * 
+     * Example usage:
+     * @code
+     * auto budgets = resourceManager->getMemoryBudget();
+     * for (size_t i = 0; i < budgets.size(); ++i) {
+     *     printf("Heap %zu: Usage %llu / %llu bytes (%.1f%%)\n", 
+     *            i, budgets[i].usage, budgets[i].budget,
+     *            (double)budgets[i].usage * 100.0 / (double)budgets[i].budget);
+     * }
+     * @endcode
+     */
+    std::vector<VmaBudget> getMemoryBudget() const;
+
+    /**
+     * @brief Get detailed memory usage statistics
+     * @return VmaTotalStatistics structure containing detailed memory usage information
+     * 
+     * This function calculates detailed memory usage statistics, including information
+     * about allocations, unused ranges, and memory blocks. This is more computationally
+     * intensive than getMemoryBudget() but provides more detailed information.
+     * 
+     * Example usage:
+     * @code
+     * auto stats = resourceManager->getMemoryUsage();
+     * printf("Total memory allocated: %llu bytes\n", stats.total.statistics.allocationBytes);
+     * printf("Total allocations: %u\n", stats.total.statistics.allocationCount);
+     * @endcode
+     */
+    VmaTotalStatistics getMemoryUsage() const;
+
+    /**
+     * @brief Perform memory defragmentation
+     * @param maxBytesPerPass Maximum number of bytes to move in a single pass (0 for no limit)
+     * @param maxAllocationsPerPass Maximum number of allocations to move in a single pass (0 for no limit)
+     * @return VmaDefragmentationStats containing statistics about the defragmentation process
+     * 
+     * This function performs memory defragmentation to reduce memory fragmentation
+     * and potentially improve performance. It may move allocations to optimize memory usage.
+     * 
+     * Example usage:
+     * @code
+     * auto stats = resourceManager->defragmentMemory();
+     * printf("Defragmentation moved %u allocations\n", stats.allocationsMoved);
+     * printf("Bytes freed: %llu\n", stats.bytesFreed);
+     * @endcode
+     * 
+     * @note This operation can be expensive and should not be performed every frame.
+     */
+    VmaDefragmentationStats defragmentMemory(VkDeviceSize maxBytesPerPass = 0, uint32_t maxAllocationsPerPass = 0);
+
+    /**
+     * @brief Perform memory defragmentation on a specific memory pool
+     * @param pool VmaPool handle to defragment
+     * @param maxBytesPerPass Maximum number of bytes to move in a single pass (0 for no limit)
+     * @param maxAllocationsPerPass Maximum number of allocations to move in a single pass (0 for no limit)
+     * @return VmaDefragmentationStats containing statistics about the defragmentation process
+     * 
+     * This function performs memory defragmentation on a specific memory pool to reduce
+     * memory fragmentation and potentially improve performance.
+     * 
+     * @note This operation can be expensive and should not be performed every frame.
+     */
+    VmaDefragmentationStats defragmentMemoryPool(VmaPool pool, VkDeviceSize maxBytesPerPass = 0, uint32_t maxAllocationsPerPass = 0);
+
+    /**
+     * @brief Print memory usage information to the console
+     * @param detailed Whether to print detailed statistics (true) or just summary (false)
+     * 
+     * This function prints memory usage information to the console, including
+     * memory budget, usage, and allocation statistics for each memory heap.
+     * 
+     * Example usage:
+     * @code
+     * resourceManager->printMemoryUsage();
+     * @endcode
+     */
+    void printMemoryUsage(bool detailed = false) const;
+
 
 private:
     /**

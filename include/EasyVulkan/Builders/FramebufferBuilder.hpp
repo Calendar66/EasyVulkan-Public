@@ -25,29 +25,34 @@ class VulkanContext;
  *          - Handling framebuffer dimensions
  *          - Providing sensible defaults for common use cases
  *          - Validating framebuffer configuration
+ *          - Supporting multiple attachments and array layers
  *
  * Common usage patterns:
  * @code
  * // Create a simple framebuffer with color and depth
  * auto framebuffer = framebufferBuilder
- *     ->addAttachment(colorImageView)
- *     ->addAttachment(depthImageView)
- *     ->setDimensions(width, height)
- *     ->build(renderPass, "mainFramebuffer");
+ *     .addAttachment(colorImageView)
+ *     .addAttachment(depthImageView)
+ *     .setDimensions(width, height)
+ *     .build(renderPass, "mainFramebuffer");
  *
- * // Create a framebuffer for multisampling
- * auto msaaFramebuffer = framebufferBuilder
- *     ->addAttachment(msaaColorImageView)
- *     ->addAttachment(msaaDepthImageView)
- *     ->addAttachment(resolveImageView)
- *     ->setDimensions(width, height)
- *     ->build(renderPass, "msaaFramebuffer");
+ * // Create a framebuffer with multiple color attachments
+ * auto mrt = framebufferBuilder
+ *     .addAttachments({color0, color1, color2, depth})
+ *     .setDimensions(width, height)
+ *     .build(renderPass, "multiple-render-targets");
+ * 
+ * // Create a framebuffer for a render pass with subpasses
+ * auto subpassFb = framebufferBuilder
+ *     .addAttachments({input, intermediate0, intermediate1, output})
+ *     .setDimensions(width, height)
+ *     .build(renderPass, "subpass-framebuffer");
  *
  * // Create a layered framebuffer (e.g., for cubemap rendering)
  * auto cubemapFramebuffer = framebufferBuilder
- *     ->addAttachment(cubemapImageView)
- *     ->setDimensions(size, size, 6)  // 6 layers for cubemap
- *     ->build(renderPass, "cubemapFramebuffer");
+ *     .addAttachment(cubemapImageView)
+ *     .setDimensions(size, size, 6)  // 6 layers for cubemap
+ *     .build(renderPass, "cubemap-framebuffer");
  * @endcode
  */
 class FramebufferBuilder {
@@ -77,6 +82,20 @@ public:
      *       in the render pass this framebuffer will be used with.
      */
     FramebufferBuilder& addAttachment(VkImageView attachment);
+
+
+    /**
+     * @brief Adds multiple attachments to the framebuffer
+     * @param attachments Vector of image view handles for the attachments
+     * @return Reference to this builder for method chaining
+     * @throws std::runtime_error if:
+     *         - No attachments are added
+     * 
+     * @note Attachments must be added in the same order as they are declared
+     *       in the render pass this framebuffer will be used with.
+     */
+    FramebufferBuilder& addAttachments(const std::vector<VkImageView>& attachments);
+
 
     /**
      * @brief Sets the dimensions of the framebuffer

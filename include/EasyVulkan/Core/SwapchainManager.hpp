@@ -128,6 +128,28 @@ public:
     const std::vector<VkImageView>& getSwapchainImageViews() const { return m_swapchainImageViews; }
 
     /**
+     * @brief Get the number of swapchain images
+     * @return uint32_t Number of swapchain images
+     */
+    uint32_t getSwapchainImageCount() const { return static_cast<uint32_t>(m_swapchainImages.size()); }
+
+    /**
+     * @brief Set the framebuffers for the swapchain
+     * @param framebuffers Vector of framebuffer handles
+     */
+    void setSwapchainFramebuffers(const std::vector<VkFramebuffer>& framebuffers) { 
+        m_swapchainFramebuffers = framebuffers; 
+    }
+
+    /**
+     * @brief Get the framebuffers for the swapchain
+     * @return const std::vector<VkFramebuffer>& List of framebuffer handles
+     */
+    const std::vector<VkFramebuffer>& getSwapchainFramebuffers() const { 
+        return m_swapchainFramebuffers; 
+    }
+
+    /**
      * @brief Set the preferred color space for the swapchain
      * @param colorSpace The desired VkColorSpaceKHR value
      * @details This will take effect on the next swapchain creation
@@ -184,6 +206,7 @@ private:
     VkSwapchainKHR m_swapchain;              ///< Swapchain handle
     std::vector<VkImage> m_swapchainImages;  ///< List of swapchain images
     std::vector<VkImageView> m_swapchainImageViews; ///< List of image views
+    std::vector<VkFramebuffer> m_swapchainFramebuffers; ///< List of framebuffers
     VkFormat m_swapchainImageFormat;         ///< Format of swapchain images
     VkExtent2D m_swapchainExtent;           ///< Dimensions of swapchain images
 

@@ -243,6 +243,7 @@ public:
      * @param dataSize Size of the data in bytes
      * @param name Optional name for resource tracking
      * @param outAllocation Optional pointer to receive VMA allocation handle
+     * @param finalImageLayout Final image layout
      * @return Created and initialized image info
      * @throws std::runtime_error if:
      *         - Image creation fails
@@ -258,13 +259,21 @@ public:
      *     .setExtent(width, height)
      *     .setUsage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
      *     .buildAndInitialize(pixels, width * height * 4, "texture");
+     * 
+     * // Build and initialize with a specific final layout
+     * auto image = imageBuilder
+     *     .setFormat(VK_FORMAT_R8G8B8A8_SRGB)
+     *     .setExtent(width, height)
+     *     .setUsage(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
+     *     .buildAndInitialize(pixels, width * height * 4, "texture",nullptr, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
      * @endcode
      */
     ImageInfo buildAndInitialize(
         const void* data,
         VkDeviceSize dataSize,
         const std::string& name = "",
-        VmaAllocation* outAllocation = nullptr);
+        VmaAllocation* outAllocation = nullptr,
+        VkImageLayout finalImageLayout=VK_IMAGE_LAYOUT_GENERAL);
 
 
     /**
@@ -343,13 +352,15 @@ private:
      * @param imageInfo ImageInfo to upload to
      * @param data Pointer to image data
      * @param dataSize Size of data in bytes
+     * @param finalImageLayout Final image layout
      * @throws std::runtime_error if data upload fails
      */
 
     void uploadData(
         ImageInfo imageInfo,
         const void* data,
-        VkDeviceSize dataSize) const;
+        VkDeviceSize dataSize,
+        VkImageLayout finalImageLayout=VK_IMAGE_LAYOUT_GENERAL) const;
 
     /**
      * @brief Transitions an image's layout

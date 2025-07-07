@@ -80,15 +80,40 @@ bool checkValidationLayerSupport(
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT             messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData) {
-    
+    void*                                       pUserData)
+{
+    // Only print warnings or worse
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+        std::cerr << "Validation layer: " << pCallbackData->pMessage << std::endl;
+
+        // Print any queue labels (if you use vkQueueBeginDebugUtilsLabelEXT)
+        for (uint32_t i = 0; i < pCallbackData->queueLabelCount; i++) {
+            const auto& lbl = pCallbackData->pQueueLabels[i];
+            std::cerr << "\t[QueueLabel] " << lbl.pLabelName << std::endl;
+        }
+
+        // Print any command-buffer labels (if you use vkCmdBeginDebugUtilsLabelEXT)
+        for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
+            const auto& lbl = pCallbackData->pCmdBufLabels[i];
+            std::cerr << "\t[CmdBufLabel] " << lbl.pLabelName << std::endl;
+        }
+
+        // Print all objects with their debug names (aliases)
+        for (uint32_t i = 0; i < pCallbackData->objectCount; i++) {
+            const auto& obj = pCallbackData->pObjects[i];
+            std::cerr << "\t[Object] Type: " 
+                      << obj.objectType 
+                      << ", Handle: 0x" << std::hex << obj.objectHandle << std::dec 
+                      << ", Name: " 
+                      << (obj.pObjectName ? obj.pObjectName : "N/A")
+                      << std::endl;
+        }
     }
 
+    // Returning VK_FALSE tells Vulkan that we do NOT want to abort the call
     return VK_FALSE;
 }
 

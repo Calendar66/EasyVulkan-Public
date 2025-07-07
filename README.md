@@ -2,14 +2,38 @@
 
 EasyVulkan is a modern C++ framework designed to simplify Vulkan development by providing a high-level, intuitive API while maintaining the performance benefits of Vulkan. It offers a builder-based approach to Vulkan object creation and management, making Vulkan development more accessible and less error-prone.
 
+## 🚀 What's New in This Update
+
+### Major New Features
+- **🎯 Automatic Debug Object Naming**: All resources are automatically named for enhanced debugging with RenderDoc, NSight Graphics, and validation layers
+- **🧠 Advanced Memory Management**: Comprehensive VMA integration with memory monitoring, budget tracking, and defragmentation
+- **📱 OpenHarmony Platform Support**: Full native support for HarmonyOS applications with `initializeOHOS()` method
+- **🔍 Enhanced Debug Utilities**: Command buffer labels, GPU profiling markers, and improved validation callbacks
+- **⚡ Memory Leak Resolution**: Fixed builder lifetime management by returning builders by value instead of reference
+
+### Interface Changes
+- **Builder Pattern Update**: Changed from `auto &builder = resourceManager->createX()` to `auto builder = resourceManager->createX()` (prevents memory leaks)
+- **OpenHarmony Initialization**: New `initializeOHOS(width, height, nativeWindow)` method for HarmonyOS
+- **Debug Integration**: Automatic `setDebugObjectName()` calls for all registered resources
+
+### New APIs Added
+- `resourceManager->getMemoryUsage()` - Get detailed memory statistics
+- `resourceManager->getMemoryBudget()` - Monitor memory budget per heap
+- `resourceManager->defragmentMemory()` - Perform memory defragmentation
+- `resourceManager->printMemoryUsage()` - Print memory usage to console
+- `VulkanDebug::beginDebugLabel()` / `endDebugLabel()` - GPU profiling markers
+- `VulkanDebug::insertDebugLabel()` - Single debug markers
+
 ## Features
 
 - **Builder Pattern API**: Create Vulkan objects with a fluent, chainable API
-- **Resource Management**: Automatic tracking and cleanup of Vulkan resources
+- **Resource Management**: Automatic tracking and cleanup of Vulkan resources with enhanced lifecycle management
+- **Automatic Debug Object Naming**: Resources are automatically named for enhanced debugging and profiling
+- **Advanced Memory Management**: Memory monitoring, defragmentation, and budget tracking with VMA integration
 - **Simplified Synchronization**: Easy-to-use synchronization primitives
-- **Command Buffer Management**: Streamlined command buffer recording and submission
-- **Memory Management**: Integration with Vulkan Memory Allocator for efficient memory handling
-- **Cross-Platform Support**: Works on Windows, macOS, and Linux
+- **Command Buffer Management**: Streamlined command buffer recording and submission with debug labels
+- **Enhanced Debug Utilities**: Validation callbacks, command buffer profiling markers, and object naming
+- **Cross-Platform Support**: Works on Windows, macOS, Linux, and OpenHarmony
 - **Modern C++**: Utilizes C++20 features for clean, expressive code
 
 ## Motvation
@@ -20,7 +44,11 @@ When first learning Vulkan, we're often amazed by the greater freedom it offers 
 - C++20 compatible compiler
 - CMake 3.20 or higher
 - Vulkan SDK 1.3.x or higher
-- GLFW 3.3 or higher
+- GLFW 3.3 or higher (not required for OpenHarmony)
+
+### OpenHarmony Additional Requirements
+- OpenHarmony SDK 3.0 or higher
+- Native development tools for OpenHarmony
 
 ## Installation
 
@@ -58,6 +86,17 @@ Install the Vulkan SDK and development packages:
 sudo apt-get install libvulkan-dev vulkan-tools
 ```
 
+#### OpenHarmony
+
+Install the OpenHarmony SDK and configure the native development environment. For OpenHarmony applications, use the `initializeOHOS()` method instead of `initialize()`:
+
+```cpp
+// OpenHarmony initialization
+context->initializeOHOS(width, height, nativeWindow);
+```
+
+Note: OpenHarmony builds use different surface extensions and don't require GLFW.
+
 ## Quick Start: Triangle Example
 
 The Triangle example demonstrates how to create a simple Vulkan application using EasyVulkan. Here's a step-by-step breakdown:
@@ -88,7 +127,7 @@ swapchainManager->createSwapchain();
 #include <EasyVulkan/Builders/RenderPassBuilder.hpp>
 
 // Create render pass using builder pattern
-auto &builder = resourceManager->createRenderPass();
+auto builder = resourceManager->createRenderPass();
 
 // Add color attachment
 builder.addColorAttachment(
@@ -128,7 +167,7 @@ vkCreatePipelineLayout(device->getLogicalDevice(), &pipelineLayoutInfo,
                        nullptr, &pipelineLayout);
 
 // Create graphics pipeline
-auto &builder = resourceManager->createGraphicsPipeline();
+auto builder = resourceManager->createGraphicsPipeline();
 
 // Configure pipeline with builder pattern
 builder.addShaderStage(VK_SHADER_STAGE_VERTEX_BIT, vertShader)
@@ -165,7 +204,7 @@ const std::vector<Vertex> vertices = {
 };
 
 // Create vertex buffer
-auto &builder = resourceManager->createBuffer();
+auto builder = resourceManager->createBuffer();
 VkBuffer vertexBuffer =
     builder.setSize(sizeof(vertices[0]) * vertices.size())
         .setUsage(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
@@ -187,7 +226,7 @@ auto commandPool = cmdPoolManager->createCommandPool(
     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 // Create command buffers
-auto &builder = resourceManager->createCommandBuffer();
+auto builder = resourceManager->createCommandBuffer();
 std::vector<VkCommandBuffer> commandBuffers = 
     builder.setCommandPool(commandPool)
          .setCount(framebuffers.size())
@@ -301,23 +340,23 @@ EasyVulkan/
 
 ### VulkanContext
 
-The central class that initializes Vulkan and manages all other components.
+The central class that initializes Vulkan and manages all other components. Supports both standard platforms and OpenHarmony with platform-specific initialization methods.
 
 ### ResourceManager
 
-Manages Vulkan resources and provides builder objects for resource creation.
+Manages Vulkan resources and provides builder objects for resource creation. Features automatic debug object naming, comprehensive resource tracking, and advanced memory management with VMA integration including monitoring and defragmentation capabilities.
 
 ### SwapchainManager
 
-Handles swapchain creation, image acquisition, and presentation.
+Handles swapchain creation, image acquisition, and presentation across all supported platforms.
 
 ### CommandPoolManager
 
-Manages command pools and provides utilities for command buffer allocation.
+Manages command pools and provides utilities for command buffer allocation with enhanced debugging support.
 
 ### SynchronizationManager
 
-Provides utilities for synchronization primitives like semaphores and fences.
+Provides utilities for synchronization primitives like semaphores and fences with frame synchronization management.
 
 ## Builder Classes
 
@@ -333,6 +372,80 @@ EasyVulkan uses the builder pattern to simplify Vulkan object creation:
 - **DescriptorSetBuilder**: Create descriptor sets
 - **SamplerBuilder**: Create samplers
 - **ComputePipelineBuilder**: Create compute pipelines
+
+## Advanced Features
+
+### Automatic Debug Object Naming
+
+EasyVulkan automatically assigns debug names to all created resources, enhancing debugging and profiling capabilities:
+
+```cpp
+// Resources are automatically named when created
+auto buffer = resourceManager->createBuffer()
+    .setSize(1024)
+    .setUsage(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+    .build("MyVertexBuffer");
+
+// The debug name "MyVertexBuffer" is automatically set for validation layers
+// and debugging tools like RenderDoc, NSight Graphics, etc.
+```
+
+### Memory Management and Monitoring
+
+Advanced memory management features with VMA integration:
+
+```cpp
+// Get memory usage statistics
+auto stats = resourceManager->getMemoryUsage();
+std::cout << "Total allocated: " << stats.total.statistics.allocationBytes << " bytes\n";
+std::cout << "Total allocations: " << stats.total.statistics.allocationCount << "\n";
+
+// Print detailed memory information
+resourceManager->printMemoryUsage(true);
+
+// Get memory budget for each heap
+auto budgets = resourceManager->getMemoryBudget();
+for (size_t i = 0; i < budgets.size(); ++i) {
+    float usage = (float)budgets[i].usage * 100.0f / (float)budgets[i].budget;
+    std::cout << "Heap " << i << ": " << usage << "% used\n";
+}
+
+// Perform memory defragmentation (use sparingly)
+auto defragStats = resourceManager->defragmentMemory();
+std::cout << "Defragmentation moved " << defragStats.allocationsMoved << " allocations\n";
+```
+
+### Debug Utilities and Profiling
+
+Enhanced debugging with command buffer labels and validation:
+
+```cpp
+#include <EasyVulkan/Utils/VulkanDebug.hpp>
+
+// Use debug labels for GPU profiling
+float color[4] = {1.0f, 0.0f, 0.0f, 1.0f}; // Red
+ev::VulkanDebug::beginDebugLabel(device, commandBuffer, "Shadow Pass", color);
+// ... record shadow rendering commands ...
+ev::VulkanDebug::endDebugLabel(device, commandBuffer);
+
+// Insert debug markers
+float yellow[4] = {1.0f, 1.0f, 0.0f, 1.0f};
+ev::VulkanDebug::insertDebugLabel(device, commandBuffer, "Draw Skybox", yellow);
+```
+
+### Platform Abstraction
+
+Seamless cross-platform development with conditional compilation:
+
+```cpp
+// Standard platforms (Windows, macOS, Linux)
+context->initialize(width, height);
+
+// OpenHarmony platform
+#ifdef __OHOS__
+context->initializeOHOS(width, height, nativeWindow);
+#endif
+```
 
 ## Contributing
 

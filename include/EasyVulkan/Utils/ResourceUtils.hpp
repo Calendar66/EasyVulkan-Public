@@ -487,7 +487,7 @@ void transitionImageLayout(
 void transitionImageLayoutWithInfo(
     VulkanDevice* device,
     VkCommandPool commandPool,
-    ImageInfo imageInfo,
+    ImageInfo &imageInfo,
     VkImageLayout newLayout);
 
 

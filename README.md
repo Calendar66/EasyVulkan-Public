@@ -1,6 +1,7 @@
 # EasyVulkan
 
 EasyVulkan is a modern C++ framework designed to simplify Vulkan development by providing a high-level, intuitive API while maintaining the performance benefits of Vulkan. It offers a builder-based approach to Vulkan object creation and management, making Vulkan development more accessible and less error-prone.
+![LOGO.png](https://obsidian-picture-1313051055.cos.ap-nanjing.myqcloud.com/Obsidian/LOGO.png)
 
 ## 🚀 What's New in This Update
 
